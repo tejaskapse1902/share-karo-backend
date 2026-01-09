@@ -6,4 +6,5 @@ python-dotenv
 passlib[bcrypt]
 python-jose
 google-auth
+requests
 email-validator
