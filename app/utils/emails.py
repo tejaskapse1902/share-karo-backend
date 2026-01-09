@@ -1,38 +1,40 @@
-import smtplib
-from email.mime.text import MIMEText
-from dotenv import load_dotenv
+import requests
 import os
+from dotenv import load_dotenv
 
 load_dotenv()
 
-SMTP_SERVER = os.getenv("BREVO_SMTP_SERVER")
-SMTP_PORT = int(os.getenv("BREVO_SMTP_PORT"))
-SMTP_USERNAME = os.getenv("BREVO_SMTP_USERNAME")
-SMTP_PASSWORD = os.getenv("BREVO_SMTP_PASSWORD")
+BREVO_API_KEY = os.getenv("BREVO_API_KEY")
 FROM_EMAIL = os.getenv("FROM_EMAIL")
 
 def send_otp_email(to_email: str, otp: str):
-    subject = "Your OTP for Password Reset"
-    body = f"""
-Hello,
+    url = "https://api.brevo.com/v3/smtp/email"
 
-Your OTP for password reset is:
+    headers = {
+        "accept": "application/json",
+        "api-key": BREVO_API_KEY,
+        "content-type": "application/json"
+    }
 
-{otp}
+    payload = {
+        "sender": {
+            "email": FROM_EMAIL
+        },
+        "to": [
+            {"email": to_email}
+        ],
+        "subject": "Your OTP for Password Reset",
+        "htmlContent": f"""
+        <p>Hello,</p>
+        <p>Your OTP for password reset is:</p>
+        <h2>{otp}</h2>
+        <p>This OTP is valid for 5 minutes.</p>
+        <p>Do not share it with anyone.</p>
+        <p>Regards,<br>Your App Team</p>
+        """
+    }
 
-This OTP is valid for 5 minutes.
-Do not share it with anyone.
+    response = requests.post(url, json=payload, headers=headers)
 
-Regards,
-Your App Team
-"""
-
-    msg = MIMEText(body)
-    msg["Subject"] = subject
-    msg["From"] = FROM_EMAIL
-    msg["To"] = to_email
-
-    with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-        server.starttls()
-        server.login(SMTP_USERNAME, SMTP_PASSWORD)
-        server.sendmail(FROM_EMAIL, to_email, msg.as_string())
+    if response.status_code not in (200, 201):
+        raise Exception(f"Brevo API error: {response.text}")
