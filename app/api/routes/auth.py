@@ -1,12 +1,12 @@
 from fastapi import APIRouter, HTTPException
 from app.schemas.auth import SignupSchema, LoginSchema
-from app.schemas.auth import ForgotPasswordSchema, VerifyOtpSchema, ResetPasswordSchema, GoogleLoginSchema
-from app.services.google_auth import verify_google_id_token
+from app.schemas.auth import ForgotPasswordSchema, VerifyOtpSchema, ResetPasswordSchema
 from app.db.mongodb import user_collection
 from app.core.security import create_access_token
 from app.utils.emails import send_otp_email
 from app.utils.otp import generate_otp
 from datetime import datetime, timedelta
+from fastapi.responses import JSONResponse
 
 router = APIRouter()
 
@@ -18,7 +18,7 @@ async def signup(data: SignupSchema):
 
     await user_collection.insert_one({
         "email": data.email,
-        "username": data.username,
+        "name": data.name,
         "password": data.password
     })
 
@@ -26,7 +26,7 @@ async def signup(data: SignupSchema):
 
 @router.post("/login")
 async def login(data: LoginSchema):
-    user = await user_collection.find_one({"email": data.email, "username": data.username})
+    user = await user_collection.find_one({"email": data.email})
     if not user:
         raise HTTPException(status_code=400, detail="Invalid credentials")
 
@@ -88,32 +88,8 @@ async def reset_password(data: ResetPasswordSchema):
 
     return {"message": "Password reset successfully"}
 
-
-@router.post("/loginwithgoogle")
-async def login_with_google(data: GoogleLoginSchema):
-    google_user = verify_google_id_token(data.id_token)
-
-    if not google_user:
-        raise HTTPException(status_code=401, detail="Invalid Google token")
-
-    email = google_user.get("email")
-    name = google_user.get("name")
-
-    if not email:
-        raise HTTPException(status_code=400, detail="Email not found")
-
-    user = await user_collection.find_one({"email": email})
-
-    if not user:
-        await user_collection.insert_one({
-            "email": email,
-            "username": name,
-            "auth_provider": "google"
-        })
-
-    token = create_access_token({"sub": email})
-
-    return {
-        "access_token": token,
-        "token_type": "bearer"
-    }
+@router.post("/logout")
+def logout():
+    response = JSONResponse({"message": "logged out"})
+    response.delete_cookie("access_token")
+    return response
