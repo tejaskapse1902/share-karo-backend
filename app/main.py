@@ -10,6 +10,7 @@ app.add_middleware(
         "http://localhost:5173",   # React (Vite)
         "http://localhost:3000",   # React (CRA)
         "https://your-frontend-domain.com"  # later
+        "*"  # For testing purposes; remove in production
     ],
     allow_credentials=True,
     allow_methods=["*"],
